@@ -1,4 +1,4 @@
-
+import time
 import math
 import pygame
 from pygame.locals import *
@@ -11,15 +11,21 @@ from helpers import *
 
 """ 
 Main HeightMap class 
+
+TileMap is 2d array of tile objects, where the row and column of the array match the x and y tile coordinates
+of the tile object. Within the object is its z-value and color.
 """
 
 class HeightMap:
 	
 	def __init__(self, min_height=0, max_height=10, tile_size=5, map_width=100, map_height=100 ):
 		
+		# init
+		random.seed()
+		pygame.font.init()
 		screen = pygame.display.get_surface()
-
-		# record starter vars
+		
+		# set up our defaults
 		self.min_height = min_height
 		self.max_height = max_height
 		self.tile_size = tile_size
@@ -34,14 +40,10 @@ class HeightMap:
 		self.peaks = []
 		self.basins = []
 
-		# prep for random events, init font
-		random.seed()
-		pygame.font.init()
-		
-		# go through cols and rows to create initial tiles
-		print 'cols:', self.cols
-		print 'row:', self.rows
-		print 'tile_count:', self.tile_count
+		# create initial tiles
+		# print 'cols:', self.cols
+		# print 'row:', self.rows
+		# print 'tile_count:', self.tile_count
 		for i in xrange(self.rows):
 			for j in xrange(self.cols):
 				tile = {
@@ -53,54 +55,68 @@ class HeightMap:
 					'color': WHITE
 				}				
 				self.tiles[i][j]= tile
-
-				if TESTING: 
-					pprint.pprint(tile)
 				
 
 		# # loop through mountains, find nearest x rounds of neighbors, and change their height to interpolated value
-		peaks = self.set_random_points( (self.tile_count * .2), max_height )
-		basins = self.set_random_points( (self.tile_count * .01), min_height )
+		peaks = self.set_random_points( (self.tile_count * MOUNTAIN_FREQ), max_height )
+		basins = self.set_random_points( (self.tile_count * BASIN_FREQ), min_height )
 		features = peaks + basins
 		random.shuffle(features)
 		for tile in features:	
 			neighbors = self.get_neighbors(tile)
-			self.interpolate_neighbors( tile, 1 ) 
+			self.interpolate_neighbors( tile, 2 ) 
 			for t in neighbors:
 				self.interpolate_neighbors( t, 1 ) 
 			
 
 
-		# # interpolate all tiles twice to smooth
-		self.smooth_map(1, 2)
-		# self.smooth_map(1, 2)
-						
-		# draw each tile
-		labels = []		
+		# # interpolate all tiles to smooth			
+		for i in xrange(1,SMOOTH_PASSES):
+			print "smoothing"
+			self.smooth_map(SMOOTH_STRENGTH, SMOOTH_VARIANCE)
+			self.draw_map()
+
+		pygame.display.update()
+		pygame.display.flip()		
+
+
+	def draw_map(self):	
+		# draw each tile and its label
+		screen = pygame.display.get_surface()
 		for i in xrange(self.cols):		
 			for j in xrange(self.rows):
 				try:
 					# update color field 
-					new_color = self.tiles[i][j]['z'] * COLOR_SCALE
-					new_color = clamp(new_color, 0, 255)
-					self.tiles[i][j]['color'] = (new_color,new_color,new_color)
-					pygame.draw.rect(screen, self.tiles[i][j]['color'], (self.tiles[i][j]['x'], self.tiles[i][j]['y'], tile_size, tile_size), 0)
-					
+					self.tiles[i][j]['color'] = self.calc_color(self.tiles[i][j]['z'])
+					# draw rect
+					pygame.draw.rect(screen, self.tiles[i][j]['color'], (self.tiles[i][j]['x'], self.tiles[i][j]['y'], TILE_SIZE, TILE_SIZE), 0)					
 					# draw label
-					label = str(self.tiles[i][j]['z'])	
-					font = pygame.font.Font(None, 14)
-					text = font.render(label, 1, (10, 10, 10))
-					screen.blit(text, (text.get_rect().move(i*tile_size,j*tile_size)))
+					if SHOW_LABELS:
+						label = str(self.tiles[i][j]['z'])	
+						font = pygame.font.Font(None, 14)
+						text = font.render(label, 1, (10, 10, 10))
+						screen.blit(text, (text.get_rect().move(i*TILE_SIZE,j*TILE_SIZE)))
 				except Exception as e:
 					pprint.pprint(e)
 
 
-		# # self.create_fault_lines()
 
-		pygame.display.update()
-		pygame.display.flip()
 
-	
+	def calc_color(self, z_val):
+		if z_val == 0: return CLR_SEA_3
+		if z_val == 1: return CLR_SEA_2
+		if z_val == 2: return CLR_SEA_1
+		if z_val == 3: return CLR_BEACH
+		if z_val == 4: return CLR_GRN_1
+		if z_val == 5: return CLR_GRN_2
+		if z_val == 6: return CLR_GRN_3
+		if z_val == 7: return CLR_STN_1
+		if z_val == 8: return CLR_STN_2
+		if z_val == 9: return CLR_STN_3
+		if z_val == 10: return CLR_PEAK
+		return CLR_UNKNOWN
+
+
 
 
 	def get_neighbors(self, tile):
@@ -120,7 +136,7 @@ class HeightMap:
 			neighbors.append(self.tiles[x_pos + i][y_pos + i]) #mid right
 			
 		except Exception as e:
-			pprint.pprint(tile)
+			# pprint.pprint(tile)
 			pass
 		return neighbors
 
@@ -136,10 +152,10 @@ class HeightMap:
 			rnd_var = random.randint(0, variance)
 			avg_z = (tile['z'] + t['z']) / 2			
 
-			# print 'rnd_var:', rnd_var
-			# print 'tile[z]:', tile['z']
-			# print 'neighbor[z]:', t['z']
-			# print 'avg_z: ', avg_z
+			print 'rnd_var:', rnd_var
+			print 'tile[z]:', tile['z']
+			print 'neighbor[z]:', t['z']
+			print 'avg_z: ', avg_z
 
 			if (rnd_var % 2 == 0):
 				avg_z += rnd_var 
@@ -156,9 +172,7 @@ class HeightMap:
 		fin_avg_z = sum(avgs)/len(avgs)
 		fin_avg_z = clamp( fin_avg_z, self.min_height, self.max_height )		
 		self.tiles[ t['tile_x'] ][ t['tile_y'] ]['z'] = fin_avg_z
-
 		# print 'final avg z', fin_avg_z
-		# print '\n\n\n'
 
 
 	def set_random_points( self, total_points, z_value):
@@ -172,7 +186,8 @@ class HeightMap:
 				self.tiles[rnd_x][rnd_y]['z'] = z_value			
 				points.append(self.tiles[rnd_x][rnd_y])
 			except Exception as e:
-				print 'set_random_points: Exception:', e
+				pass
+				# print 'set_random_points: Exception:', e
 		return points
 
 
@@ -184,11 +199,9 @@ class HeightMap:
 		tiles_stack = tiles_stack[1:strength_count]
 		while len(tiles_stack) > 0:
 			tile = tiles_stack.pop()
-			if TESTING: pprint.pprint(tile)
 			x = int(tile[0]['tile_x'])
-			y = int(tile[0]['tile_y'])	
-			save_tile = self.tiles[x][y]			
-			self.interpolate_neighbors(save_tile, variance)  				
+			y = int(tile[0]['tile_y'])				
+			self.interpolate_neighbors(self.tiles[x][y], variance)  				
 
 
 

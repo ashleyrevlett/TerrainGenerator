@@ -7,13 +7,6 @@ from config import *
 Helper functions 
 """
 
-
-def random_color():
-	# r = random.randrange(0, 255, 1)
-	# g = random.randrange(0, 255, 1)
-	b = random.randint(0, 255)
-	return (b,b,b)
-
 def random_point():
 	x = random.randint(0, SCREEN_WIDTH)
 	y = random.randint(0, SCREEN_WIDTH)

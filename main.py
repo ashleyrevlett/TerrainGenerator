@@ -18,7 +18,6 @@ algorithm:
 import math
 import pygame
 import random
-import pprint
 import heightmap
 from config import *
 
@@ -33,7 +32,7 @@ def main():
 	# create the height map
 	height_map = heightmap.HeightMap(min_height=MIN_HEIGHT, max_height=MAX_HEIGHT, tile_size=TILE_SIZE, map_width=SCREEN_WIDTH, map_height=SCREEN_HEIGHT)
 	
-	#run the game
+	#run the app
 	loop()
 
 
